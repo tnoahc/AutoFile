@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AutoFile.App/AutoFile.App.csproj" />
+    <Project Path="src/AutoFile.Cli/AutoFile.Cli.csproj" />
+    <Project Path="src/AutoFile.Core/AutoFile.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AutoFile.Tests/AutoFile.Tests.csproj" />
+  </Folder>
+</Solution>
