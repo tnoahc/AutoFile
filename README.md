@@ -2,6 +2,10 @@
 
 Keeps folders tidy by renaming files to a date-based naming convention: **`YYMMDD Title`** by default, e.g. `Budget Review.xlsx` → `251102 Budget Review.xlsx`.
 
+![AutoFile previewing renames in a folder: each file's current name, new name, and where its date came from](docs/screenshot.png)
+
+**Download:** get the latest `AutoFile-<version>-win-x64.zip` from [Releases](https://github.com/tnoahc/AutoFile/releases), extract it anywhere and run `AutoFileApp.exe`. No install or .NET runtime needed.
+
 ## Naming conventions
 
 A convention is written the way you'd describe it: a date made of `YYYY` or `YY`, `MM` and `DD` (optionally separated by `-`, `_`, `.` or a space), the word `Title`, and any fixed text around them.
