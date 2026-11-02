@@ -1,0 +1,10 @@
+<Project>
+
+  <!-- Shared by every project. Bump Version here for each release, then tag the commit vX.Y.Z. -->
+  <PropertyGroup>
+    <Version>1.0.0</Version>
+    <Product>AutoFile</Product>
+    <Authors>Noah Tarinyebwa</Authors>
+  </PropertyGroup>
+
+</Project>
