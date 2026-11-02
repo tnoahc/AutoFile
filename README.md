@@ -6,14 +6,27 @@ Keeps folders tidy by renaming files to a date-based naming convention: **`YYMMD
 
 A convention is written the way you'd describe it: a date made of `YYYY` or `YY`, `MM` and `DD` (optionally separated by `-`, `_`, `.` or a space), the word `Title`, and any fixed text around them.
 
+These presets are built in:
+
 | Convention | Example |
 | --- | --- |
 | `YYMMDD Title` (default) | `251102 Budget Review.docx` |
 | `YYYY-MM-DD Title` | `2025-11-02 Budget Review.docx` |
+| `YYYYMMDD Title` | `20251102 Budget Review.docx` |
 | `YYYYMMDD_Title` | `20251102_Budget Review.docx` |
+| `YYYY-MM-DD - Title` | `2025-11-02 - Budget Review.docx` |
+| `DD-MM-YYYY Title` | `02-11-2025 Budget Review.docx` |
 | `Title - YYYY-MM-DD` | `Budget Review - 2025-11-02.docx` |
-| `Title - DD.MM.YYYY` (custom) | `Budget Review - 02.11.2025.docx` |
-| `[YYYY.MM.DD] Title` (custom) | `[2025.11.02] Budget Review.docx` |
+| `Title_YYYYMMDD` | `Budget Review_20251102.docx` |
+
+You can also write your own:
+
+| Convention | Example |
+| --- | --- |
+| `Title - DD.MM.YYYY` | `Budget Review - 02.11.2025.docx` |
+| `[YYYY.MM.DD] Title` | `[2025.11.02] Budget Review.docx` |
+
+If nothing is left of the title once the date is removed (e.g. a photo named `20240315.jpg`), the title becomes `Untitled`.
 
 There's one **default** convention, and any watched folder can set its **own** (e.g. Photos uses `YYYY-MM-DD Title` while Documents keeps `YYMMDD Title`). Files already named in a different recognised convention are **converted**: switching a folder to `YYYY-MM-DD Title` turns `240315 Report` into `2024-03-15 Report`. As always, every rename can be undone.
 
@@ -31,7 +44,7 @@ A file is left alone if its name already follows the convention that applies to 
 .\publish.ps1
 ```
 
-This produces `dist\AutoFile\` with two self-contained exes (no .NET install needed). Copy that folder anywhere. Settings and history live beside the exes in `AutoFile.data\`.
+Building needs Windows and the [.NET 10 SDK](https://dotnet.microsoft.com/download). This produces `dist\AutoFile\` with two self-contained exes for 64-bit Windows (no .NET install needed to run them). Copy that folder anywhere. Settings and history live beside the exes in `AutoFile.data\`.
 
 | File | What it is |
 | --- | --- |
@@ -48,7 +61,7 @@ Double-click `AutoFileApp.exe`. The window has three tabs:
 - **Watched folders**: click **Add folder…** to have AutoFile keep a folder tidy automatically. You can watch it straight away or preview it first. New or changed files are renamed once they've been untouched for 5 seconds and aren't open in another program. Select a folder and click **Convention…** to give it its own convention, or use **Change…** next to *Default naming convention*. You're asked to confirm first, because the watcher will then rename that folder's files to match. This tab also has **Pause watching** and **Start AutoFile in the tray when I sign in to Windows** (a per-user startup entry, no admin rights needed).
 - **History**: every batch of renames, whether from the window, the watcher or the command line. Select one to see its files, and click **Undo this batch** to put the names back.
 
-Closing the window keeps AutoFile running in the tray while any folders are watched. Double-click the **AF** tray icon to reopen it, or right-click it to pause, undo or exit. If nothing is watched, closing the window quits. Launching the exe again brings the existing window forward, and `AutoFileApp.exe "C:\some\folder"` opens with that folder ready to check.
+Closing the window keeps AutoFile running in the tray while any folders are watched. Double-click the **AF** tray icon to reopen it, or right-click it to pause, undo or exit. If nothing is watched, closing the window quits. Launching the exe again brings the existing window forward, `AutoFileApp.exe "C:\some\folder"` opens with that folder ready to check, and `AutoFileApp.exe --minimized` starts in the tray without opening the window (this is what the sign-in startup entry uses).
 
 A full sweep runs every 15 minutes to catch anything the file system events missed. Folder changes made with `autofile folders …` are picked up while the app is running.
 
@@ -62,14 +75,15 @@ autofile history [--limit <n>]                              list recent batches
 autofile folders add <folder> [--recursive] [--convention "<c>"]
                                                             watch a folder
 autofile folders remove <folder>
-autofile folders list
+autofile folders [list]
 autofile convention                                         show the default and the presets
 autofile convention set "<c>"                               change the default
 autofile watch                                              run the watcher in a console window
 autofile config                                             show where config and journal live
+autofile help                                               show usage
 ```
 
-Without `--convention`, `scan` uses the folder's watched convention if it has one, otherwise the default.
+Without `--convention`, `scan` uses the folder's watched convention if it has one, otherwise the default. `-r` is short for `--recursive` and `-n` for `--limit`. `history` shows the last 20 batches by default.
 
 ## Git journal
 
@@ -93,4 +107,6 @@ dotnet build
 dotnet test
 ```
 
-`src/AutoFile.Core` holds all the logic (rules, date detection, planner, journal, watcher). `src/AutoFile.App` (WinForms window + tray) and `src/AutoFile.Cli` are thin front ends. `tools/make-icon.ps1` regenerates the app icon. Set `AUTOFILE_DATA` to point the apps at a scratch data folder while testing.
+Requires the .NET 10 SDK on Windows (the app targets `net10.0-windows`). Tests use xUnit.
+
+`src/AutoFile.Core` holds all the logic (rules, date detection, planner, journal, watcher). It uses [LibGit2Sharp](https://github.com/libgit2/libgit2sharp) for the journal and [MetadataExtractor](https://github.com/drewnoakes/metadata-extractor-dotnet) for photo/video dates. `src/AutoFile.App` (WinForms window + tray) and `src/AutoFile.Cli` are thin front ends. `tools/make-icon.ps1` regenerates the app icon. Set `AUTOFILE_DATA` to point the apps at a scratch data folder while testing.
