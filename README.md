@@ -1,10 +1,70 @@
 # AutoFile
 
-Keeps folders tidy by renaming files to a date-based naming convention: **`YYMMDD Title`** by default, e.g. `Budget Review.xlsx` → `251102 Budget Review.xlsx`.
+I name my files `YYMMDD Title`, so every folder sorts by date. Keeping that up by hand meant working out each file's date and retyping its name. AutoFile does it for me: it finds the right date, renames the file, and keeps doing it in the folders I tell it to watch.
 
-![AutoFile previewing renames in a folder: each file's current name, new name, and where its date came from](docs/screenshot.png)
+![AutoFile previewing renames in a folder: each file's current name, new name, and whether its date came from the name, the file's properties or its created/modified time](docs/rename-files.png)
 
-**Download:** get the latest `AutoFile-<version>-win-x64.zip` from [Releases](https://github.com/tnoahc/AutoFile/releases), extract it anywhere and run `AutoFileApp.exe`. No install or .NET runtime needed.
+## What is it?
+
+A Windows app that renames files to a date-based naming convention, **`YYMMDD Title`** by default: `Budget Review.xlsx` becomes `251102 Budget Review.xlsx`. You preview every rename before it happens, and every rename can be undone.
+
+**Download:** [the latest release](https://github.com/tnoahc/AutoFile/releases/latest)
+
+## Why this exists
+
+A date at the front of a file name is a simple filing system. It sorts by date anywhere files are sorted by name, and it doesn't depend on a program or a database. The hard part is keeping it up. The right date is often hidden: in a photo's EXIF data, in a Word document's properties, or in a different date format that's already in the name. And Windows resets a file's *created* date whenever it's copied or downloaded, so the date Explorer shows is often the wrong one.
+
+## Current state
+
+Version 1.0.0, released as a zip with two self-contained exes for 64-bit Windows. There's no installer and no .NET runtime to install. Settings and history live in a folder beside the exes, so the whole thing is portable. It's tested on Windows 11 Pro: the 48 automated tests pass, and the screenshots here are from the release build.
+
+**What works:**
+
+| Feature | Status |
+| --- | --- |
+| Rename a folder (and optionally its subfolders) with a preview first | ✅ |
+| Eight built-in naming conventions, or write your own | ✅ |
+| A different convention per folder, converting files already named in another one | ✅ |
+| Dates from the file name, photo/video/Office/PDF metadata, or file timestamps | ✅ |
+| Watched folders, renamed automatically from the tray | ✅ |
+| Undo any batch of renames, with full history in a git repo | ✅ |
+| Command-line tool | ✅ |
+| Editing ignore patterns and timings in the app | ❌ (edit `config.json`, see [Settings](#settings)) |
+| macOS and Linux | ❌ |
+
+For example, with the default convention, `IMG_20240315_1234.jpg` becomes `240315 IMG_1234.jpg`, and `Scan.pdf` gets the creation date stored inside the PDF.
+
+## How it works
+
+For each file, AutoFile picks a date in this order. The preview's **Date taken from** column shows which one it used.
+
+1. **A date already in the name** (*Name*). It recognises every preset and configured convention, plus names like `2024-03-15 Notes`, `Report_20240315`, `IMG_20240315_1234`, `Minutes 15.03.2024` (day first) and `240315_Plan`. The old date is taken out of the title.
+2. **Metadata inside the file** (*File properties*). This covers the photo or video "date taken" (EXIF/QuickTime), the Office "created" property (docx, xlsx, pptx and so on), and the PDF creation date.
+3. **File timestamps** (*Created/modified*). It uses the earlier of *created* and *modified*. Because Windows resets *created* when a file is copied or downloaded, *modified* is often the truer date.
+
+If nothing is left of the title once the date is removed (a photo named `20240315.jpg`, say), the title becomes `Untitled`.
+
+A file is left alone if its name already follows the convention that applies to it, with a real date. Hidden and system files, Office lock files (`~$…`), partial downloads, shortcuts and anything inside `.git` are skipped. If the new name is taken, ` (2)`, ` (3)` and so on is added. Existing files are never overwritten.
+
+Watched folders use the Windows file system events. A new or changed file is renamed once it's been untouched for 5 seconds and isn't open in another program. A full sweep every 15 minutes catches anything the events missed.
+
+Every batch of renames is a commit in a git repo, `AutoFile.data\journal`. Each batch is one JSON file, and the commit message lists `old path -> new name`. Undo restores the names and records the reversal as its own commit. The watcher doesn't rename files that an undo restored, but an explicit `scan --apply` still will. You can browse the history with any git tool, for example `git -C AutoFile.data\journal log --stat`.
+
+## Setup
+
+1. Download `AutoFile-<version>-win-x64.zip` from [the latest release](https://github.com/tnoahc/AutoFile/releases/latest).
+2. Extract it anywhere and run `AutoFileApp.exe`.
+3. On the **Rename files** tab, choose a folder, pick a convention in **Name as**, and click **Check folder**. Untick anything you want to leave alone, then click **Rename**.
+4. To keep a folder tidy from now on, go to **Watched folders** and click **Add folder…**.
+
+The zip contains:
+
+| File | What it is |
+| --- | --- |
+| `AutoFileApp.exe` | The app: a window for renaming, plus the background watcher in the tray |
+| `autofile.exe` | Command-line tool (optional) |
+
+On first run, AutoFile creates `AutoFile.data\` beside the exes, holding `config.json` (watched folders, ignore patterns, timings) and `journal\` (the git repo recording every rename).
 
 ## Naming conventions
 
@@ -30,44 +90,24 @@ You can also write your own:
 | `Title - DD.MM.YYYY` | `Budget Review - 02.11.2025.docx` |
 | `[YYYY.MM.DD] Title` | `[2025.11.02] Budget Review.docx` |
 
-If nothing is left of the title once the date is removed (e.g. a photo named `20240315.jpg`), the title becomes `Untitled`.
-
-There's one **default** convention, and any watched folder can set its **own** (e.g. Photos uses `YYYY-MM-DD Title` while Documents keeps `YYMMDD Title`). Files already named in a different recognised convention are **converted**: switching a folder to `YYYY-MM-DD Title` turns `240315 Report` into `2024-03-15 Report`. As always, every rename can be undone.
-
-## How the date is chosen
-
-1. **A date already in the name**: names in any preset or configured convention, plus `2024-03-15 Notes`, `Report_20240315`, `IMG_20240315_1234`, `Minutes 15.03.2024` (day first) and `240315_Plan`. The old date is taken out of the title.
-2. **Metadata inside the file**: photo/video "date taken" (EXIF/QuickTime), the Office "created" property (docx/xlsx/pptx…), and the PDF creation date.
-3. **File timestamps**: the earlier of *created* and *modified*. Windows resets *created* when a file is copied or downloaded, so *modified* is often the truer date.
-
-A file is left alone if its name already follows the convention that applies to it, with a real date. Hidden/system files, Office lock files (`~$…`), partial downloads, shortcuts and anything inside `.git` are skipped. If the new name is taken, ` (2)`, ` (3)`… is added. Existing files are never overwritten.
-
-## Portable build
-
-```powershell
-.\publish.ps1
-```
-
-Building needs Windows and the [.NET 10 SDK](https://dotnet.microsoft.com/download). This produces `dist\AutoFile\` with two self-contained exes for 64-bit Windows (no .NET install needed to run them). Copy that folder anywhere. Settings and history live beside the exes in `AutoFile.data\`.
-
-| File | What it is |
-| --- | --- |
-| `AutoFileApp.exe` | The app: a window for renaming, plus the background watcher in the tray |
-| `autofile.exe` | Command-line tool (optional) |
-| `AutoFile.data\config.json` | Watched folders, ignore patterns, timings |
-| `AutoFile.data\journal\` | Git repo recording every rename |
+There's one **default** convention, and any watched folder can set its **own**. For example, Photos can use `YYYY-MM-DD Title` while Documents keeps `YYMMDD Title`. Files already named in a different recognised convention are **converted**: switching a folder to `YYYY-MM-DD Title` turns `240315 Report` into `2024-03-15 Report`.
 
 ## The app
 
-Double-click `AutoFileApp.exe`. The window has three tabs:
+The window has three tabs:
 
-- **Rename files**: choose a folder (Browse, paste a path, or drag a folder onto the window). Pick a convention in **Name as** (a preset, or type your own; a live example shows the result). Tick **Include subfolders** if you want, then click **Check folder**. You'll see each file's current name, new name, and where the date came from. Untick anything you want to leave alone, then click **Rename**. An **Undo** button appears straight afterwards. A watched folder automatically brings up its own convention.
-- **Watched folders**: click **Add folder…** to have AutoFile keep a folder tidy automatically. You can watch it straight away or preview it first. New or changed files are renamed once they've been untouched for 5 seconds and aren't open in another program. Select a folder and click **Convention…** to give it its own convention, or use **Change…** next to *Default naming convention*. You're asked to confirm first, because the watcher will then rename that folder's files to match. This tab also has **Pause watching** and **Start AutoFile in the tray when I sign in to Windows** (a per-user startup entry, no admin rights needed).
+- **Rename files**: choose a folder (Browse, paste a path, or drag a folder onto the window) and pick a convention in **Name as**. That's a preset or one you type, and a live example shows the result. Tick **Include subfolders** if you want, then click **Check folder**. You'll see each file's current name, new name, and where the date came from. Untick anything you want to leave alone, then click **Rename**. An **Undo** button appears straight afterwards. Choosing a watched folder brings up its own convention.
+- **Watched folders**: click **Add folder…** to have AutoFile keep a folder tidy. You can watch it straight away or preview it first. Select a folder and click **Convention…** to give it its own convention, or use **Change…** next to *Default naming convention*. You're asked to confirm first, because the watcher will then rename that folder's files to match. This tab also has **Pause watching** and **Start AutoFile in the tray when I sign in to Windows** (a per-user startup entry, no admin rights needed).
+
+  ![The Watched folders tab, with S:\Photos watched using the YYYY-MM-DD Title convention](docs/watched-folders.png)
+
 - **History**: every batch of renames, whether from the window, the watcher or the command line. Select one to see its files, and click **Undo this batch** to put the names back.
 
-Closing the window keeps AutoFile running in the tray while any folders are watched. Double-click the **AF** tray icon to reopen it, or right-click it to pause, undo or exit. If nothing is watched, closing the window quits. Launching the exe again brings the existing window forward, `AutoFileApp.exe "C:\some\folder"` opens with that folder ready to check, and `AutoFileApp.exe --minimized` starts in the tray without opening the window (this is what the sign-in startup entry uses).
+  ![The History tab, listing a batch renamed in the window and one renamed automatically, with the selected batch's before and after names](docs/history.png)
 
-A full sweep runs every 15 minutes to catch anything the file system events missed. Folder changes made with `autofile folders …` are picked up while the app is running.
+Closing the window keeps AutoFile running in the tray while any folders are watched. Double-click the **AF** tray icon to reopen it, or right-click it to pause, undo or exit. If nothing is watched, closing the window quits.
+
+Launching the exe again brings the existing window forward. `AutoFileApp.exe "C:\some\folder"` opens with that folder ready to check, and `AutoFileApp.exe --minimized` starts in the tray without opening the window (the sign-in startup entry uses this).
 
 ## Command line
 
@@ -87,13 +127,11 @@ autofile config                                             show where config an
 autofile help                                               show usage
 ```
 
-Without `--convention`, `scan` uses the folder's watched convention if it has one, otherwise the default. `-r` is short for `--recursive` and `-n` for `--limit`. `history` shows the last 20 batches by default.
+Without `--convention`, `scan` uses the folder's watched convention if it has one, otherwise the default. `-r` is short for `--recursive` and `-n` for `--limit`. `history` shows the last 20 batches by default. The app picks up folder changes made with `autofile folders …` while it's running.
 
-## Git journal
+## Settings
 
-Every batch of renames is a commit in `AutoFile.data\journal` (one JSON file per batch, and the commit message lists `old path -> new name`). Undo restores the names and records the reversal as its own commit. Files restored by an undo aren't renamed again by the watcher, but an explicit `scan --apply` will still rename them. You can browse the history with any git tool, e.g. `git -C AutoFile.data\journal log --stat`.
-
-## Settings (`config.json`)
+Settings are in `AutoFile.data\config.json`:
 
 | Key | Default | Meaning |
 | --- | --- | --- |
@@ -104,13 +142,34 @@ Every batch of renames is a commit in `AutoFile.data\journal` (one JSON file per
 | `StableSeconds` | `5` | Quiet time before the watcher renames a file |
 | `RescanMinutes` | `15` | Interval between full sweeps |
 
-## Development
+## What's next
+
+Ideas I'm considering. Tell me which would be most useful:
+
+- Ignore patterns, timings and the metadata option in the app, instead of only in `config.json`
+- A code-signed release, so Windows doesn't warn on first run
+- A build for Windows on Arm (releases are currently `win-x64` only)
+
+## Caveats
+
+- **Windows only.** It relies on Windows file system events and WinForms.
+- **The exes aren't code-signed.** Windows SmartScreen may say "Windows protected your PC" the first time you run them. Click **More info → Run anyway**.
+- **Dates with separators after the day are read day first.** `03.04.2024` and `03-04-2024` mean 3 April 2024, not 4 March.
+- **File timestamps can mislead.** A file with no date in its name or metadata gets the earlier of its created and modified dates, which may be when it was copied rather than written. Check the preview before renaming.
+- **Undo works by path.** If you've moved or renamed a file since AutoFile renamed it, or something else now has its old name, undo skips that file and tells you.
+- **Files open in another program wait.** The watcher renames them once they're closed.
+- This was developed with AI assistance (Claude).
+
+## Building from source
 
 ```powershell
 dotnet build
 dotnet test
+.\publish.ps1
 ```
 
-Requires the .NET 10 SDK on Windows (the app targets `net10.0-windows`). Tests use xUnit.
+You'll need Windows and the [.NET 10 SDK](https://dotnet.microsoft.com/download) (the app targets `net10.0-windows`). Tests use xUnit. `publish.ps1` writes the portable app to `dist\AutoFile\` and the release zip to `dist\`. The version is set in `Directory.Build.props`.
 
-`src/AutoFile.Core` holds all the logic (rules, date detection, planner, journal, watcher). It uses [LibGit2Sharp](https://github.com/libgit2/libgit2sharp) for the journal and [MetadataExtractor](https://github.com/drewnoakes/metadata-extractor-dotnet) for photo/video dates. `src/AutoFile.App` (WinForms window + tray) and `src/AutoFile.Cli` are thin front ends. `tools/make-icon.ps1` regenerates the app icon. Set `AUTOFILE_DATA` to point the apps at a scratch data folder while testing.
+`src/AutoFile.Core` holds all the logic: rules, date detection, planner, journal and watcher. It uses [LibGit2Sharp](https://github.com/libgit2/libgit2sharp) for the journal and [MetadataExtractor](https://github.com/drewnoakes/metadata-extractor-dotnet) for photo and video dates. `src/AutoFile.App` (WinForms window and tray) and `src/AutoFile.Cli` are thin front ends. `tools/make-icon.ps1` regenerates the app icon. Set `AUTOFILE_DATA` to point the apps at a scratch data folder while testing.
+
+Feedback, bug reports and contributions are welcome.
